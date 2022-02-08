@@ -12,7 +12,7 @@ public class Server extends WebSocketServer{
     private WebSocket connection;
     private ArrayList<AssistantInterface> listener;
 
-    public Server(int port){
+    public Server(int port) {
         super(new InetSocketAddress(port));
         this.listener = new ArrayList<>();
     }

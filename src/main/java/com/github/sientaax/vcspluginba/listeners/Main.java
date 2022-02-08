@@ -19,8 +19,8 @@ public class Main implements ProjectManagerListener {
         if (ApplicationManager.getApplication().isUnitTestMode()) {
             return;
         }
-        //server = new Server(80);
-        //server.start();
+        server = new Server(80);
+        server.start();
     }
 
     @Override

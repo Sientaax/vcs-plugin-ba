@@ -7,12 +7,11 @@
     <depends>com.intellij.modules.platform</depends>
 
     <extensions defaultExtensionNs="com.intellij">
-        <applicationService serviceImplementation="com.github.sientaax.vcspluginba.services.MyApplicationService"/>
-        <projectService serviceImplementation="com.github.sientaax.vcspluginba.services.MyProjectService"/>
+
     </extensions>
 
     <applicationListeners>
-        <listener class="com.github.sientaax.vcspluginba.listeners.MyProjectManagerListener"
+        <listener class="com.github.sientaax.vcspluginba.listeners.Main"
                   topic="com.intellij.openapi.project.ProjectManagerListener"/>
     </applicationListeners>
 </idea-plugin>

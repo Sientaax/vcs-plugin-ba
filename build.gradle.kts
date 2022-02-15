@@ -25,7 +25,15 @@ repositories {
 }
 
 dependencies {
-    implementation("org.java-websocket:Java-WebSocket:1.5.2")
+    implementation("org.java-websocket:Java-WebSocket:1.5.2"){
+        exclude(group = "org.slf4j")
+    }
+    implementation("org.eclipse.jgit:org.eclipse.jgit:6.0.0.202111291000-r"){
+        exclude(group = "org.slf4j")
+    }
+    implementation("com.google.code.gson:gson:2.9.0"){
+        exclude(group = "org.slf4j")
+    }
 }
 
 // Configure Gradle IntelliJ Plugin - read more: https://github.com/JetBrains/gradle-intellij-plugin

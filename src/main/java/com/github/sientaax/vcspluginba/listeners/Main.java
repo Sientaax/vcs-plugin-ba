@@ -6,7 +6,11 @@ import com.intellij.openapi.extensions.PluginId;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.project.ProjectManagerListener;
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.ResetCommand;
+import org.eclipse.jgit.api.Status;
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.lib.Ref;
+import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.jetbrains.annotations.NotNull;
 
@@ -14,14 +18,19 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
+
+import static java.nio.file.StandardWatchEventKinds.*;
 
 public class Main implements ProjectManagerListener {
 
     private static Server server;
+    private static Path projectPath;
     private Process assistantProcess;
 
     @Override
     public void projectOpened(@NotNull Project project) {
+        projectPath = Path.of(Objects.requireNonNull(project.getBasePath()));
         if (ApplicationManager.getApplication().isUnitTestMode()) {
             return;
         }
@@ -33,30 +42,6 @@ public class Main implements ProjectManagerListener {
     private void startServer(){
         server = new Server(80);
         server.start();
-    }
-
-    public static void receivedMessage(String message) {
-        ParseJson parseJson = new ParseJson(message);
-        try {
-            //pathname muss mit user.dir ausgetauscht werden
-            Git git = Git.init().setDirectory(new File("C:\\Users\\HP\\Desktop\\PluginTesterTwo\\testseven")).call();
-            if(parseJson.getType().equals("commitMessage")) {
-                git.add().addFilepattern(".").call();
-                git.commit().setMessage(parseJson.getData()).call();
-
-                List<String> commitMessageLog = new ArrayList<>();
-                Iterable<RevCommit> commitLog = git.log().call();
-                commitLog.forEach(i -> commitMessageLog.add(i.getFullMessage()));
-
-                List<String> dateLog = new ArrayList<>();
-                Iterable<RevCommit> commitLogDate = git.log().call();
-                commitLogDate.forEach(i -> dateLog.add(String.valueOf(i.getAuthorIdent().getWhen())));
-
-                server.sendMessage(CreateJson.createJsonRefresh(commitMessageLog, dateLog).toString());
-            }
-        } catch(GitAPIException e){
-            e.printStackTrace();
-        }
     }
 
     private void startAssistant() {
@@ -74,22 +59,22 @@ public class Main implements ProjectManagerListener {
         }
     }
 
-    private void initCommitNotifier(){
-        //observeFiles();
+    private void initCommitNotifier() {
+        observeFiles();
         Timer timer = new Timer();
         timer.scheduleAtFixedRate(new TimerTask(){
             public void run() {
-                //server.sendMessage("countWorkingTime");
                 server.sendMessage(CreateJson.createJsonWorkingTime("countWorkingTime").toString());
+                getLogData();
             }
-        }, new Date(), 60000);
+        }, new Date(), 5000);
     }
 
-    private void observeFiles(){
+    private void observeFiles() {
         try(WatchService service = FileSystems.getDefault().newWatchService()){
             Map<WatchKey, Path> keyMap = new HashMap<>();
-            //pathname muss mit user.dir ausgetauscht werden + \\src
-            Path path = Paths.get("C:\\Users\\HP\\Desktop\\PluginTesterTwo\\testseven");
+            Path path = Path.of(projectPath + "\\src");
+            System.out.println("InsidePath: "+path);
             keyMap.put(path.register(service,
                     StandardWatchEventKinds.ENTRY_CREATE,
                     StandardWatchEventKinds.ENTRY_DELETE), path);
@@ -107,6 +92,61 @@ public class Main implements ProjectManagerListener {
                 }
             } while (watchKey.reset());
         }catch(Exception e){
+            e.printStackTrace();
+        }
+    }
+
+    private void getLogData(){
+        try {
+            Git git = Git.init().setDirectory(new File(String.valueOf(projectPath))).call();
+            //Repository repository = git.getRepository();
+
+            List<String> messageLog = new ArrayList<>();
+            Iterable<RevCommit> commitMessageLog = git.log().call();
+            commitMessageLog.forEach(i -> messageLog.add(i.getFullMessage()));
+
+            List<String> dateLog = new ArrayList<>();
+            Iterable<RevCommit> commitDateLog = git.log().call();
+            commitDateLog.forEach(i -> dateLog.add(String.valueOf(i.getAuthorIdent().getWhen())));
+
+            Status status = git.status().call();
+            List<String> statusLog = new ArrayList<>();
+            for(String modified:status.getModified()){
+                System.out.println("Modified file: "+ modified);
+            }
+
+            server.sendMessage(CreateJson.createJsonRefresh(messageLog, dateLog).toString());
+            server.sendMessage(CreateJson.createJsonLogCounter(String.valueOf(messageLog.size())).toString());
+        } catch(GitAPIException e){
+            e.printStackTrace();
+        }
+    }
+
+    public static void receivedMessage(String message) {
+        ParseJson parseJson = new ParseJson(message);
+        try {
+            Git git = Git.init().setDirectory(new File(String.valueOf(projectPath))).call();
+            if(parseJson.getType().equals("commitMessage")) {
+                git.add().addFilepattern(".").call();
+                git.commit().setMessage(parseJson.getData()).call();
+                git.tag().setName(parseJson.getData()).call();
+            } else if(parseJson.getType().equals("loadBranch")) {
+                int randomNum = ThreadLocalRandom.current().nextInt(1, 1000000);
+                git.add().addFilepattern(".");
+                git.commit().setMessage("interimCommit").call();
+                git.tag().setName("interim").call();
+                String startPoint = "refs/tags/" + parseJson.getData();
+                git.checkout().setCreateBranch(true).setName(String.valueOf(randomNum)).setStartPoint(startPoint).call();
+            } else if(parseJson.getType().equals("loadBranchMaster")) {
+                //git.reset().setMode(ResetCommand.ResetType.SOFT).setRef("HEAD").call();
+                //git.reset().setMode(ResetCommand.ResetType.SOFT).setRef("HEAD").call();
+                git.checkout().setName("master").call();
+            } else if(parseJson.getType().equals("continueWorking")){
+                //git.reset().setMode(ResetCommand.ResetType.SOFT).setRef("HEAD").call();
+                //git.reset().setMode(ResetCommand.ResetType.SOFT).setRef("HEAD").call();
+                //git.tagDelete().setTags("interim").call();
+            }
+        } catch(GitAPIException e){
             e.printStackTrace();
         }
     }

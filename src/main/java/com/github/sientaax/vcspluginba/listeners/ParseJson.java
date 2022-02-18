@@ -6,8 +6,8 @@ import com.google.gson.JsonParser;
 public class ParseJson {
 
     private JsonObject jsonObject = new JsonObject();
-    private String type = "";
-    private String data = "";
+    public String type = "";
+    public String data = "";
 
     public ParseJson(String message){
         parseJsonMethod(message);

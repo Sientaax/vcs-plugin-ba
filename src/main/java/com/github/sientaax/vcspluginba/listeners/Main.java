@@ -6,11 +6,7 @@ import com.intellij.openapi.extensions.PluginId;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.project.ProjectManagerListener;
 import org.eclipse.jgit.api.Git;
-import org.eclipse.jgit.api.ResetCommand;
-import org.eclipse.jgit.api.Status;
 import org.eclipse.jgit.api.errors.GitAPIException;
-import org.eclipse.jgit.lib.Ref;
-import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.jetbrains.annotations.NotNull;
 
@@ -19,8 +15,6 @@ import java.io.IOException;
 import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
-
-import static java.nio.file.StandardWatchEventKinds.*;
 
 public class Main implements ProjectManagerListener {
 
@@ -60,7 +54,7 @@ public class Main implements ProjectManagerListener {
     }
 
     private void initCommitNotifier() {
-        observeFiles();
+        //observeFiles();
         Timer timer = new Timer();
         timer.scheduleAtFixedRate(new TimerTask(){
             public void run() {
@@ -99,7 +93,6 @@ public class Main implements ProjectManagerListener {
     private void getLogData(){
         try {
             Git git = Git.init().setDirectory(new File(String.valueOf(projectPath))).call();
-            //Repository repository = git.getRepository();
 
             List<String> messageLog = new ArrayList<>();
             Iterable<RevCommit> commitMessageLog = git.log().call();
@@ -108,12 +101,6 @@ public class Main implements ProjectManagerListener {
             List<String> dateLog = new ArrayList<>();
             Iterable<RevCommit> commitDateLog = git.log().call();
             commitDateLog.forEach(i -> dateLog.add(String.valueOf(i.getAuthorIdent().getWhen())));
-
-            Status status = git.status().call();
-            List<String> statusLog = new ArrayList<>();
-            for(String modified:status.getModified()){
-                System.out.println("Modified file: "+ modified);
-            }
 
             server.sendMessage(CreateJson.createJsonRefresh(messageLog, dateLog).toString());
             server.sendMessage(CreateJson.createJsonLogCounter(String.valueOf(messageLog.size())).toString());
@@ -134,17 +121,10 @@ public class Main implements ProjectManagerListener {
                 int randomNum = ThreadLocalRandom.current().nextInt(1, 1000000);
                 git.add().addFilepattern(".");
                 git.commit().setMessage("interimCommit").call();
-                git.tag().setName("interim").call();
                 String startPoint = "refs/tags/" + parseJson.getData();
                 git.checkout().setCreateBranch(true).setName(String.valueOf(randomNum)).setStartPoint(startPoint).call();
             } else if(parseJson.getType().equals("loadBranchMaster")) {
-                //git.reset().setMode(ResetCommand.ResetType.SOFT).setRef("HEAD").call();
-                //git.reset().setMode(ResetCommand.ResetType.SOFT).setRef("HEAD").call();
                 git.checkout().setName("master").call();
-            } else if(parseJson.getType().equals("continueWorking")){
-                //git.reset().setMode(ResetCommand.ResetType.SOFT).setRef("HEAD").call();
-                //git.reset().setMode(ResetCommand.ResetType.SOFT).setRef("HEAD").call();
-                //git.tagDelete().setTags("interim").call();
             }
         } catch(GitAPIException e){
             e.printStackTrace();

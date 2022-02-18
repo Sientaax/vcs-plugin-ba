@@ -10,10 +10,12 @@ public class CreateJson {
     public static JsonObject createJsonRefresh(List<String> commitMessageLog, List<String> dateLog){
         JsonArray jsonArray = new JsonArray();
         for(int i = 0; i < commitMessageLog.size(); i++){
-            JsonObject jsonObject = new JsonObject();
-            jsonObject.addProperty("message", commitMessageLog.get(i));
-            jsonObject.addProperty("date", dateLog.get(i));
-            jsonArray.add(jsonObject);
+            if(!commitMessageLog.get(i).equals("interimCommit")) {
+                JsonObject jsonObject = new JsonObject();
+                jsonObject.addProperty("message", commitMessageLog.get(i));
+                jsonObject.addProperty("date", dateLog.get(i));
+                jsonArray.add(jsonObject);
+            }
         }
         JsonObject mainJsonObject = new JsonObject();
         mainJsonObject.add("log", jsonArray);

@@ -103,7 +103,14 @@ public class Main implements ProjectManagerListener {
             commitDateLog.forEach(i -> dateLog.add(String.valueOf(i.getAuthorIdent().getWhen())));
 
             server.sendMessage(CreateJson.createJsonRefresh(messageLog, dateLog).toString());
-            server.sendMessage(CreateJson.createJsonLogCounter(String.valueOf(messageLog.size())).toString());
+
+            int counter = 0;
+            for(int i = 0; i < messageLog.size(); i++){
+                if(!messageLog.get(i).equals("interimCommit")){
+                    counter++;
+                }
+            }
+            server.sendMessage(CreateJson.createJsonLogCounter(String.valueOf(counter)).toString());
         } catch(GitAPIException e){
             e.printStackTrace();
         }

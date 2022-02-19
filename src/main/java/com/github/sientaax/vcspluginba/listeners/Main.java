@@ -6,6 +6,7 @@ import com.intellij.openapi.extensions.PluginId;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.project.ProjectManagerListener;
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.Status;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.jetbrains.annotations.NotNull;
@@ -20,6 +21,7 @@ public class Main implements ProjectManagerListener {
 
     private static Server server;
     private static Path projectPath;
+    private static boolean statusChecker = true;
     private Process assistantProcess;
 
     @Override
@@ -54,40 +56,13 @@ public class Main implements ProjectManagerListener {
     }
 
     private void initCommitNotifier() {
-        //observeFiles();
         Timer timer = new Timer();
-        timer.scheduleAtFixedRate(new TimerTask(){
+        timer.scheduleAtFixedRate(new TimerTask() {
             public void run() {
                 server.sendMessage(CreateJson.createJsonWorkingTime("countWorkingTime").toString());
                 getLogData();
             }
         }, new Date(), 5000);
-    }
-
-    private void observeFiles() {
-        try(WatchService service = FileSystems.getDefault().newWatchService()){
-            Map<WatchKey, Path> keyMap = new HashMap<>();
-            Path path = Path.of(projectPath + "\\src");
-            System.out.println("InsidePath: "+path);
-            keyMap.put(path.register(service,
-                    StandardWatchEventKinds.ENTRY_CREATE,
-                    StandardWatchEventKinds.ENTRY_DELETE), path);
-            WatchKey watchKey;
-            do{
-                watchKey = service.take();
-
-                for(WatchEvent<?> event : watchKey.pollEvents()){
-                    WatchEvent.Kind<?> kind = event.kind();
-                    if (kind.equals(StandardWatchEventKinds.ENTRY_CREATE)) {
-                        server.sendMessage(CreateJson.createJsonFileObserverNewFile("createNewFile").toString());
-                    } else if(kind.equals(StandardWatchEventKinds.ENTRY_DELETE)) {
-                        server.sendMessage(CreateJson.createJsonFileObserverDeleteFile("deleteAFile").toString());
-                    }
-                }
-            } while (watchKey.reset());
-        }catch(Exception e){
-            e.printStackTrace();
-        }
     }
 
     private void getLogData(){
@@ -111,6 +86,28 @@ public class Main implements ProjectManagerListener {
                 }
             }
             server.sendMessage(CreateJson.createJsonLogCounter(String.valueOf(counter)).toString());
+
+            if(statusChecker) {
+                try {
+                    Status status = git.status().call();
+                    for (String added : status.getUntracked()) {
+                        if (!added.isEmpty()) {
+                            statusChecker = false;
+                            System.out.println("Filled");
+                            server.sendMessage(CreateJson.createJsonFileObserverNewFile("createNewFile").toString());
+                        }
+                    }
+                    for (String deleted : status.getRemoved()) {
+                        if (!deleted.isEmpty()) {
+                            statusChecker = false;
+                            System.out.println("Deleted");
+                            server.sendMessage(CreateJson.createJsonFileObserverDeleteFile("deleteAFile").toString());
+                        }
+                    }
+                } catch (GitAPIException e) {
+                    e.printStackTrace();
+                }
+            }
         } catch(GitAPIException e){
             e.printStackTrace();
         }
@@ -121,6 +118,7 @@ public class Main implements ProjectManagerListener {
         try {
             Git git = Git.init().setDirectory(new File(String.valueOf(projectPath))).call();
             if(parseJson.getType().equals("commitMessage")) {
+                statusChecker = true;
                 git.add().addFilepattern(".").call();
                 git.commit().setMessage(parseJson.getData()).call();
                 git.tag().setName(parseJson.getData()).call();

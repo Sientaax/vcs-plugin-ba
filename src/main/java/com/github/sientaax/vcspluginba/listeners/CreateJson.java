@@ -45,4 +45,10 @@ public class CreateJson {
         jsonObject.addProperty("logCounter", message);
         return jsonObject;
     }
+
+    public static JsonObject createJsonBranchExists(String message){
+        JsonObject jsonObject = new JsonObject();
+        jsonObject.addProperty("branchExists", message);
+        return jsonObject;
+    }
 }

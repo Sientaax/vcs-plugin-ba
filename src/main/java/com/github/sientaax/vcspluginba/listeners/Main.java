@@ -1,21 +1,18 @@
 package com.github.sientaax.vcspluginba.listeners;
 
-import com.intellij.ide.plugins.PluginManagerCore;
 import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.extensions.PluginId;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.project.ProjectManagerListener;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.Status;
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.*;
 import java.util.*;
-import java.util.concurrent.ThreadLocalRandom;
 
 public class Main implements ProjectManagerListener {
 
@@ -31,7 +28,7 @@ public class Main implements ProjectManagerListener {
             return;
         }
         startServer();
-        //startAssistant();
+        startAssistant();
         initCommitNotifier();
     }
 
@@ -41,7 +38,7 @@ public class Main implements ProjectManagerListener {
     }
 
     private void startAssistant() {
-        try {
+        /**try {
             Path path = PluginManagerCore.getPlugin(PluginId.getId("com.github.sientaax.vcspluginba")).getPluginPath();
             String pathToString = path.toString().substring(0, path.toString().lastIndexOf("build"));
             Path assistantPathBuilder = Path.of(pathToString + "build\\resources\\main\\win-unpacked\\vcs-assistant-ba.exe");
@@ -52,8 +49,35 @@ public class Main implements ProjectManagerListener {
             assistantProcess = processBuilder.start();
         } catch(IOException e){
             e.printStackTrace();
+        }*/
+
+        File userDir = new File(System.getProperty("user.home"));
+        //File dataPath = new File(userDir, ".VersionBuddy-Plugin");
+        Path pathBuilder = Path.of(userDir + "\\.VersionBuddy-Plugin\\win-unpacked\\vcs-assistant-ba.exe");
+        Path pathDirectory = Path.of(userDir + "\\.VersionBuddy-Plugin\\win-unpacked");
+        /**if(!dataPath.exists()){
+            try {
+                System.out.println("DataPath not existing");
+                dataPath.mkdir();
+                String fileId = "1iGKeZLNOPDXejVUzrNkgPww_jAlmJ4yK";
+                OutputStream outputStream = new FileOutputStream(userDir + "\\.VersionBuddy-Plugin\\downloadedfile.pdf");
+                drive.files().get(fileId).executeMediaAndDownloadTo(outputStream);
+                outputStream.flush();
+                outputStream.close();
+            }catch (IOException e){
+                e.printStackTrace();
+            }
+        } else {*/
+            try {
+                System.out.println("DataPath is existing");
+                ProcessBuilder processBuilder = new ProcessBuilder(String.valueOf(pathBuilder));
+                processBuilder.directory(new File(String.valueOf(pathDirectory)));
+                assistantProcess = processBuilder.start();
+            } catch(IOException e){
+                e.printStackTrace();
+            }
         }
-    }
+    //}
 
     private void initCommitNotifier() {
         Timer timer = new Timer();
@@ -93,14 +117,12 @@ public class Main implements ProjectManagerListener {
                     for (String added : status.getUntracked()) {
                         if (!added.isEmpty()) {
                             statusChecker = false;
-                            System.out.println("Filled");
                             server.sendMessage(CreateJson.createJsonFileObserverNewFile("createNewFile").toString());
                         }
                     }
                     for (String deleted : status.getRemoved()) {
                         if (!deleted.isEmpty()) {
                             statusChecker = false;
-                            System.out.println("Deleted");
                             server.sendMessage(CreateJson.createJsonFileObserverDeleteFile("deleteAFile").toString());
                         }
                     }
@@ -115,23 +137,30 @@ public class Main implements ProjectManagerListener {
 
     public static void receivedMessage(String message) {
         ParseJson parseJson = new ParseJson(message);
-        try {
+        try{
             Git git = Git.init().setDirectory(new File(String.valueOf(projectPath))).call();
-            if(parseJson.getType().equals("commitMessage")) {
-                statusChecker = true;
+            if(parseJson.getType().equals("commitMessage")){
+                Ref ref = git.getRepository().exactRef("refs/heads/" +parseJson.getData());
+                if(ref == null) {
+                    statusChecker = true;
+                    git.add().addFilepattern(".").call();
+                    git.commit().setMessage(parseJson.getData()).call();
+                    git.tag().setName(parseJson.getData()).call();
+                    String startPoint = "refs/tags/" + parseJson.getData();
+                    git.checkout().setCreateBranch(true).setName(parseJson.getData()).setStartPoint(startPoint).call();
+                } else {
+                    server.sendMessage(CreateJson.createJsonBranchExists("branchExists").toString());
+                }
+            } else if(parseJson.getType().equals("loadBranch")){
                 git.add().addFilepattern(".").call();
-                git.commit().setMessage(parseJson.getData()).call();
-                git.tag().setName(parseJson.getData()).call();
-            } else if(parseJson.getType().equals("loadBranch")) {
-                int randomNum = ThreadLocalRandom.current().nextInt(1, 1000000);
-                git.add().addFilepattern(".");
                 git.commit().setMessage("interimCommit").call();
-                String startPoint = "refs/tags/" + parseJson.getData();
-                git.checkout().setCreateBranch(true).setName(String.valueOf(randomNum)).setStartPoint(startPoint).call();
-            } else if(parseJson.getType().equals("loadBranchMaster")) {
-                git.checkout().setName("master").call();
+                git.checkout().setName(parseJson.getData()).call();
+            } else if(parseJson.getType().equals("loadBranchMaster")){
+                git.checkout().setName(parseJson.getData()).call();
+            } else if(parseJson.getType().equals("continueWorking")){
+                git.checkout().setName(parseJson.getData()).call();
             }
-        } catch(GitAPIException e){
+        } catch (GitAPIException | IOException e){
             e.printStackTrace();
         }
     }

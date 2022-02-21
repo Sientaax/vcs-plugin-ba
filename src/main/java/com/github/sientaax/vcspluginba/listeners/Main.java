@@ -3,6 +3,7 @@ package com.github.sientaax.vcspluginba.listeners;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.project.ProjectManagerListener;
+import com.intellij.openapi.ui.Messages;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.Status;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -20,9 +21,11 @@ public class Main implements ProjectManagerListener {
     private static Path projectPath;
     private static boolean statusChecker = true;
     private Process assistantProcess;
+    private Project project_;
 
     @Override
     public void projectOpened(@NotNull Project project) {
+        project_ = project;
         projectPath = Path.of(Objects.requireNonNull(project.getBasePath()));
         if (ApplicationManager.getApplication().isUnitTestMode()) {
             return;
@@ -38,38 +41,18 @@ public class Main implements ProjectManagerListener {
     }
 
     private void startAssistant() {
-        /**try {
-            Path path = PluginManagerCore.getPlugin(PluginId.getId("com.github.sientaax.vcspluginba")).getPluginPath();
-            String pathToString = path.toString().substring(0, path.toString().lastIndexOf("build"));
-            Path assistantPathBuilder = Path.of(pathToString + "build\\resources\\main\\win-unpacked\\vcs-assistant-ba.exe");
-            Path assistantPathDirectory = Path.of(pathToString + "build\\resources\\main\\win-unpacked");
-
-            ProcessBuilder processBuilder = new ProcessBuilder(String.valueOf(assistantPathBuilder));
-            processBuilder.directory(new File(String.valueOf(assistantPathDirectory)));
-            assistantProcess = processBuilder.start();
-        } catch(IOException e){
-            e.printStackTrace();
-        }*/
-
+        File dataPath = new File(System.getProperty("user.home") + "\\.VersionBuddy-Plugin\\win-unpacked\\vcs-assistant-ba.exe");
         File userDir = new File(System.getProperty("user.home"));
-        //File dataPath = new File(userDir, ".VersionBuddy-Plugin");
         Path pathBuilder = Path.of(userDir + "\\.VersionBuddy-Plugin\\win-unpacked\\vcs-assistant-ba.exe");
         Path pathDirectory = Path.of(userDir + "\\.VersionBuddy-Plugin\\win-unpacked");
-        /**if(!dataPath.exists()){
+        String message = "Der Assistent ist nicht richtig installiert.\n" +
+                "Bitte kontrolliere nochmals anhand dem Cheachtsheat zur Installation des Prototypen, ob alles richtig gemacht wurde.\n" +
+                "Starte im Anschluss IntelliJ erneut.";
+        String title = "Assistent nicht gefunden";
+        if(!dataPath.exists()){
+            Messages.showMessageDialog(project_, message, title, Messages.getInformationIcon());
+        } else {
             try {
-                System.out.println("DataPath not existing");
-                dataPath.mkdir();
-                String fileId = "1iGKeZLNOPDXejVUzrNkgPww_jAlmJ4yK";
-                OutputStream outputStream = new FileOutputStream(userDir + "\\.VersionBuddy-Plugin\\downloadedfile.pdf");
-                drive.files().get(fileId).executeMediaAndDownloadTo(outputStream);
-                outputStream.flush();
-                outputStream.close();
-            }catch (IOException e){
-                e.printStackTrace();
-            }
-        } else {*/
-            try {
-                System.out.println("DataPath is existing");
                 ProcessBuilder processBuilder = new ProcessBuilder(String.valueOf(pathBuilder));
                 processBuilder.directory(new File(String.valueOf(pathDirectory)));
                 assistantProcess = processBuilder.start();
@@ -77,7 +60,7 @@ public class Main implements ProjectManagerListener {
                 e.printStackTrace();
             }
         }
-    //}
+    }
 
     private void initCommitNotifier() {
         Timer timer = new Timer();

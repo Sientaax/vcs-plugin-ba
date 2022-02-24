@@ -46,7 +46,7 @@ public class Main implements ProjectManagerListener {
         Path pathBuilder = Path.of(userDir + "\\.VersionBuddy-Plugin\\win-unpacked\\vcs-assistant-ba.exe");
         Path pathDirectory = Path.of(userDir + "\\.VersionBuddy-Plugin\\win-unpacked");
         String message = "Der Assistent ist nicht richtig installiert.\n" +
-                "Bitte kontrolliere nochmals anhand dem Cheachtsheat zur Installation des Prototypen, ob alles richtig gemacht wurde.\n" +
+                "Bitte kontrolliere nochmals anhand dem Cheatsheet zur Installation des Prototypen, ob alles richtig gemacht wurde.\n" +
                 "Starte im Anschluss IntelliJ erneut.";
         String title = "Assistent nicht gefunden";
         if(!dataPath.exists()){

@@ -19,6 +19,7 @@ public class Main implements ProjectManagerListener {
 
     private static Server server;
     private static Path projectPath;
+    private static Git git;
     private static boolean statusChecker = true;
     private Process assistantProcess;
     private Project project_;
@@ -32,6 +33,7 @@ public class Main implements ProjectManagerListener {
         }
         startServer();
         startAssistant();
+        initGitProject();
         initCommitNotifier();
     }
 
@@ -62,6 +64,16 @@ public class Main implements ProjectManagerListener {
         }
     }
 
+    private void initGitProject(){
+        try {
+            git = Git.init().setDirectory(new File(String.valueOf(projectPath))).call();
+            git.add().addFilepattern(".").call();
+            git.commit().setMessage("interimCommit").call();
+        } catch (GitAPIException e){
+            e.printStackTrace();
+        }
+    }
+
     private void initCommitNotifier() {
         Timer timer = new Timer();
         timer.scheduleAtFixedRate(new TimerTask() {
@@ -74,8 +86,6 @@ public class Main implements ProjectManagerListener {
 
     private void getLogData(){
         try {
-            Git git = Git.init().setDirectory(new File(String.valueOf(projectPath))).call();
-
             List<String> messageLog = new ArrayList<>();
             Iterable<RevCommit> commitMessageLog = git.log().call();
             commitMessageLog.forEach(i -> messageLog.add(i.getFullMessage()));
@@ -98,7 +108,7 @@ public class Main implements ProjectManagerListener {
                 try {
                     Status status = git.status().call();
                     for (String added : status.getUntracked()) {
-                        if (!added.isEmpty()) {
+                        if (!added.isEmpty() && !added.equals(".idea/vcs.xml")) {
                             statusChecker = false;
                             server.sendMessage(CreateJson.createJsonFileObserverNewFile("createNewFile").toString());
                         }
@@ -121,7 +131,6 @@ public class Main implements ProjectManagerListener {
     public static void receivedMessage(String message) {
         ParseJson parseJson = new ParseJson(message);
         try{
-            Git git = Git.init().setDirectory(new File(String.valueOf(projectPath))).call();
             if(parseJson.getType().equals("commitMessage")){
                 Ref ref = git.getRepository().exactRef("refs/heads/" +parseJson.getData());
                 if(ref == null) {

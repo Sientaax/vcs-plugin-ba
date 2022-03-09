@@ -12,6 +12,10 @@ import org.eclipse.jgit.revwalk.RevCommit;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.*;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.nio.file.*;
 import java.util.*;
 import java.util.List;
@@ -26,6 +30,7 @@ public class Main implements ProjectManagerListener {
     private Process assistantProcess;
     private Project project_;
     private int counterToLog = 0;
+    private String userName;
 
     @Override
     public void projectOpened(@NotNull Project project) {
@@ -34,11 +39,27 @@ public class Main implements ProjectManagerListener {
         if (ApplicationManager.getApplication().isUnitTestMode()) {
             return;
         }
-        logging = new Logging("0.1.11.111.11.1.0");
+        userName = getMacAdresse();
+        logging = new Logging(userName);
         startServer();
         startAssistant();
         initGitProject();
         initCommitNotifier();
+    }
+
+    private String getMacAdresse(){
+        byte [] mac = new byte[0];
+        try{
+            InetAddress ip = InetAddress.getLocalHost();
+            NetworkInterface network = NetworkInterface.getByInetAddress(ip);
+            mac = network.getHardwareAddress();
+        } catch (UnknownHostException | SocketException e){
+            e.printStackTrace();
+        }
+        String userName = Arrays.toString(mac);
+        userName = userName.replaceAll("[^0-9]", "");
+        userName = userName.replaceAll(" ", "_");
+        return userName;
     }
 
     private void startServer(){

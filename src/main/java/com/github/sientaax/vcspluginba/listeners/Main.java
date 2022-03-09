@@ -13,7 +13,9 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.*;
 import java.nio.file.*;
+import java.sql.Timestamp;
 import java.util.*;
+import java.util.List;
 
 public class Main implements ProjectManagerListener {
 
@@ -21,8 +23,10 @@ public class Main implements ProjectManagerListener {
     private static Path projectPath;
     private static Git git;
     private static boolean statusChecker = true;
+    private static Logging logging;
     private Process assistantProcess;
     private Project project_;
+    private int counterToLog = 0;
 
     @Override
     public void projectOpened(@NotNull Project project) {
@@ -31,6 +35,7 @@ public class Main implements ProjectManagerListener {
         if (ApplicationManager.getApplication().isUnitTestMode()) {
             return;
         }
+        logging = new Logging("0.1.11.111.11.1.0");
         startServer();
         startAssistant();
         initGitProject();
@@ -104,6 +109,13 @@ public class Main implements ProjectManagerListener {
             }
             server.sendMessage(CreateJson.createJsonLogCounter(String.valueOf(counter)).toString());
 
+            counterToLog++;
+            if(counterToLog == 179){
+                counterToLog = 0;
+                logging.appendToFile("15 Minutes over");
+                logging.appendToFile("\n");
+            }
+
             if(statusChecker) {
                 try {
                     Status status = git.status().call();
@@ -111,12 +123,16 @@ public class Main implements ProjectManagerListener {
                         if (!added.isEmpty() && !added.equals(".idea/vcs.xml")) {
                             statusChecker = false;
                             server.sendMessage(CreateJson.createJsonFileObserverNewFile("createNewFile").toString());
+                            logging.appendToFile("File added");
+                            logging.appendToFile("\n");
                         }
                     }
                     for (String deleted : status.getRemoved()) {
                         if (!deleted.isEmpty()) {
                             statusChecker = false;
                             server.sendMessage(CreateJson.createJsonFileObserverDeleteFile("deleteAFile").toString());
+                            logging.appendToFile("File deleted");
+                            logging.appendToFile("\n");
                         }
                     }
                 } catch (GitAPIException e) {
@@ -140,6 +156,8 @@ public class Main implements ProjectManagerListener {
                     git.tag().setName(parseJson.getData()).call();
                     String startPoint = "refs/tags/" + parseJson.getData();
                     git.checkout().setCreateBranch(true).setName(parseJson.getData()).setStartPoint(startPoint).call();
+                    logging.appendToFile("Commit created: " + parseJson.getData());
+                    logging.appendToFile("\n");
                 } else {
                     server.sendMessage(CreateJson.createJsonBranchExists("branchExists").toString());
                 }
@@ -147,10 +165,21 @@ public class Main implements ProjectManagerListener {
                 git.add().addFilepattern(".").call();
                 git.commit().setMessage("interimCommit").call();
                 git.checkout().setName(parseJson.getData()).call();
+                logging.appendToFile("Load Branch: " + parseJson.getData());
+                logging.appendToFile("\n");
             } else if(parseJson.getType().equals("loadBranchMaster")){
+                git.add().addFilepattern(".").call();
+                git.commit().setMessage("interimCommit").call();
                 git.checkout().setName(parseJson.getData()).call();
+                server.sendMessage(CreateJson.createJsonLoadBranchMaster("loadBranch").toString());
+                logging.appendToFile("Load Branch Master: " + parseJson.getData());
+                logging.appendToFile("\n");
             } else if(parseJson.getType().equals("continueWorking")){
+                git.add().addFilepattern(".").call();
+                git.commit().setMessage("interimCommit").call();
                 git.checkout().setName(parseJson.getData()).call();
+                logging.appendToFile("Continue Working: " + parseJson.getData());
+                logging.appendToFile("\n");
             }
         } catch (GitAPIException | IOException e){
             e.printStackTrace();
@@ -164,5 +193,6 @@ public class Main implements ProjectManagerListener {
         }
         server.shutdown();
         assistantProcess.destroy();
+        logging.close();
     }
 }

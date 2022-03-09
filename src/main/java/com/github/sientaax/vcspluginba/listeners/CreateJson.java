@@ -51,4 +51,10 @@ public class CreateJson {
         jsonObject.addProperty("branchExists", message);
         return jsonObject;
     }
+
+    public static JsonObject createJsonLoadBranchMaster(String message){
+        JsonObject jsonObject = new JsonObject();
+        jsonObject.addProperty("loadBranch", message);
+        return jsonObject;
+    }
 }

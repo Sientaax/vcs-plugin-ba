@@ -140,7 +140,7 @@ public class Main implements ProjectManagerListener {
                 try {
                     Status status = git.status().call();
                     for (String added : status.getUntracked()) {
-                        if (!added.isEmpty() && !added.equals(".idea/vcs.xml")) {
+                        if (!added.isEmpty() && !added.matches("\\.idea.*") && !added.matches(".*(\\.iml)")) {
                             statusChecker = false;
                             server.sendMessage(CreateJson.createJsonFileObserverNewFile("createNewFile").toString());
                             logging.appendToFile("File added");
